@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="client_multimedia API docs, for the Dart programming language.">
+  <title>client_multimedia - Dart API docs</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="static-assets/github.css?v1">
+  <link rel="stylesheet" href="static-assets/styles.css?v1">
+  <link rel="icon" href="static-assets/favicon.png?v1">
+
+  
+</head>
+
+
+<body data-base-href="" data-using-base-href="false" class="light-theme">
+
+<div id="overlay-under-drawer"></div>
+
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li class="self-crumb">client_multimedia package</li>
+  </ol>
+  <div class="self-name">client_multimedia</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <div class="toggle" id="theme-button" title="Toggle brightness">
+    <label for="theme">
+      <input type="checkbox" id="theme" value="light-theme">
+      <span id="dark-theme-button" class="material-symbols-outlined">
+        dark_mode
+      </span>
+      <span id="light-theme-button" class="material-symbols-outlined">
+        light_mode
+      </span>
+    </label>
+  </div>
+</header>
+<main>
+
+  <div id="dartdoc-main-content" class="main-content">
+      
+<section class="desc markdown">
+  <h1 id="client-multimdia">Client multimèdia</h1>
+<p>Una app per veure el funcionament del la llibreria AudioPlayers i alguns conceptes de Flutter i arquitectura en funcionament.</p>
+<h2 id="modificacions-al-projecte-android">Modificacions al projecte Android</h2>
+<p>L'aplicació requereix d'accés a Internet, pel que hem hagut d'especificar-ho explícitament al fitxer <code>AndroidManifest.xml</code>, ubicat en <code>android/app/src(main/AndroidManifest.xml</code> amb el següent codi;</p>
+<pre class="language-xml"><code class="language-xml">&lt;manifest ...&gt;
+    &lt;!-- Cal permís d'accés a Internet per obtenir les pistes --&gt;
+    &lt;uses-permission android:name="android.permission.INTERNET" /&gt;
+    &lt;application
+        ...
+        android:usesCleartextTraffic="true"&gt;  &lt;!-- Per utilitzar directament http--&gt;
+        ...
+    &lt;/application&gt;
+    ...
+&lt;/manifest&gt;
+</code></pre>
+<p>Per altra banda, la llibreria AudioPlayers requereix de la versió 25 de l'<a href="https://developer.android.com/ndk">Android NDK</a> una llibreria per implementar parts del codi amb llenguatge natiu en C i C++.</p>
+<p>L'error que obrindrem si no ho modifiquem serà:</p>
+<pre class="language-dart"><code>Your project is configured with Android NDK 23.1.7779620, but the following plugin(s) depend on a different Android NDK version:
+- audioplayers_android requires Android NDK 25.1.8937393
+- path_provider_android requires Android NDK 25.1.8937393
+Fix this issue by using the highest Android NDK version (they are backward compatible).
+Add the following to /home/usuari/FlutterProjects/client_multimedia/android/app/build.gradle:
+
+    android {
+        ndkVersion = "25.1.8937393"
+        ...
+    }
+</code></pre>
+<p>Així que afegim aquesta modificació al fitxer <code>android/app/build.gradle</code> (compte, NO el confoneu amb l'<code>android/build.gradle</code>):</p>
+<pre class="language-groovy"><code class="language-groovy">android {
+    ...
+    // ndkVersion = flutter.ndkVersion // Comentem aquesta línia
+    ndkVersion = "25.1.8937393"  // I afegim la nova versió
+}
+</code></pre>
+<h2 id="arquitecura-clean-amb-flutter">Arquitecura CLEAN amb Flutter</h2>
+<p><em>CLEAN</em> és una arquitectura de programari que se centra en la separació de responsabilitats entre diferents capes per aconseguir un codi més modular, escalable i fàcil de mantenir. Aquesta arquitectura va ser definida per Robert C. Martin (Uncle Bob) i és independent del framework o llenguatge que s’utilitze, podent aplicar-setant a aplicacions web, mòbils, com a serveis backend.</p>
+<p>Els objectius i beneficis d'aquesta arquitectura són:</p>
+<ol>
+<li><strong>Desacoblament</strong>: Cada capa té responsabilitats ben definides i no depèn directament de les implementacions de les altres.</li>
+<li><strong>Escalabilitat</strong>: Permet afegir noves funcionalitats o modificar existents sense afectar altres parts del sistema.</li>
+<li><strong>Testabilitat</strong>: Gràcies al desacoblament, cada capa pot ser provada per separat.</li>
+<li><strong>Claredat</strong>: L’organització del codi facilita la navegació i la comprensió per part de diferents equips de desenvolupament.</li>
+</ol>
+<h3 id="capes-de-larquitectura">Capes de l'arquitectura</h3>
+<p>Tot i que pot tenir variacions, podem establir les següents capes en l'arquitectura:</p>
+<ul>
+<li>
+<p><strong>Capa de presentació (Presentation Layer)</strong>: S'encarrega de la interfície de l'usuari i la interacció amb aquest. Té la responsabilitat de mostrar les ddes obtingudes de la capa de domini i enviar cap a aquesta les accions de l'usuari.</p>
+</li>
+<li>
+<p><strong>Capa de domini (Domain Layer)</strong>: És el nucli de l’aplicació i conté la lògica de negoci. Entre les seues responsabilitats està la definició de les entitats o models centrals que representen el negoci, la definició (opcional) de casos d'ús, amb la lògica de l'aplicació que defineix com interactuen les dades i la definició de les interfícies de repositori que connecten amb la capa d'infrastructura.</p>
+</li>
+<li>
+<p><strong>Capa d'infrastructura (Infrastructure/Data Layer)</strong>: Gestiona l'accés a les fonts de dades (APIs, bases de dades, serveis externs), i té les responsabilitats de la implementació de les interfícies de repositori definides a la capa de Domini, de la gestió d'oparacions d'obtenció de dades com crides HTTP o operacions amb bases de dades.</p>
+</li>
+<li>
+<p><strong>Capa Core o configuració global</strong>: Una capa opcional, que inclou diverses utilitats compartides entre les diferents capes. Tot i que és una capa opcional, pot ajudar a organitzar codi genèric.</p>
+</li>
+</ul>
+<p>Entre les diferents capes hi ha una relació de dependència, de manera que la capa de presentació depèn de la capa de domini i aquesta de la d'infrastructura, però en principi, la capa de domini no depèn de cap implementació concreta.</p>
+<p>Al nostre projecte, aquesta estructura es concreta en el següent:</p>
+<h4 id="1-capa-de-domini">1. Capa de Domini</h4>
+<p>Dividim aquesta capa en dos components:</p>
+<ul>
+<li>Capa d'<strong>Entitats (<code>entities</code>)</strong>, que representen conceptes centrals de l’aplicació com <code>Track</code> i <code>TrackDetails</code>. Aquests models són simples i agnòstics de com es recuperen o processen les dades.</li>
+<li>Cala de <strong>Repositoris (<code>repository</code>)</strong>, on es defineixen interfícies que especifiquen les operacions que es poden realitzar sobre les dades, com <code>TrackRepository</code>. Les implementacions concretes es defineixen en la capa d’infraestructura.</li>
+</ul>
+<p>En principi, aquesta capa és independent de com es gestionen les dades, pel que podem substituir la font de dades (per exemple, canviar d’API REST a una base de dades) sense modificar la lògica del domini.</p>
+<pre class="language-mermaid"><code class="language-mermaid">---
+  config:
+    class:
+      hideEmptyMembersBox: true
+---
+classDiagram
+class Track:::domain {
+id: String
+title: String?
+artist: String?
+duration: double?
+}
+class TrackDetails:::domain {
+album: String?
+cover: Uint8List?
+url: String?
+toString(): String
+}
+Track &lt;|-- TrackDetails
+
+class TrackRepositoryImpl:::infrastructura 
+
+
+TrackRepositoryImpl ..|&gt; TrackRepository
+class TrackRepository:::domain {
+
+&lt;&lt;abstract&gt;&gt;
+getTrack(): TrackDetails?
+getTrackList(): Track[0..*]
+}
+
+classDef domain fill:#9f6
+classDef infrastructura fill:#f96
+
+</code></pre>
+<h4 id="2-capa-dinfraestructura">2. Capa d’Infraestructura</h4>
+<p>Com hem comentat, aquesta capa implementa els mecanismes per accedir a dades externes com APIs o bases de dades. Aquesta capa és responsable de com es recuperen les dades definides a la capa de domini.</p>
+<p>Els components en els què dividim aquesta capa seran:</p>
+<ul>
+<li><strong>Fonts de Dades (<code>data_sources</code>)</strong>: Conté implementacions concretes per interactuar amb serveis externs. En aquest cas, <code>AudioNetworkAPI</code> és responsable de comunicar-se amb l’API REST del servidor.</li>
+<li><strong>Implementació del Repositori (<code>TrackRepositoryImpl</code>)</strong>: Aquesta classe connecta les fonts de dades (<code>AudioNetworkAPI</code>) amb les interfícies del repositori definides a la capa de domini.</li>
+</ul>
+<p>Amb aquest aorganització fem una abstracció del repositori, que permet que els components de l’aplicació no coneguen els detalls de com es gestionen les dades (com URLs d’API o protocols HTTP).</p>
+<pre class="language-mermaid"><code class="language-mermaid">---
+  config:
+    class:
+      hideEmptyMembersBox: true
+---
+classDiagram
+class AudioNetworkAPI:::infrastructura {
+baseURL: String
+getTrack(): TrackDetails?
+getTrackList(): Track[0..*]
+}
+
+
+class TrackRepositoryImpl:::infrastructura {
+-audioAPI: AudioNetworkAPI
+getTrack(): TrackDetails?
+getTrackList(): Track[0..*]
+}
+classDef infrastructura fill:#f96
+
+</code></pre>
+<h4 id="3-capa-de-presentaci">3. Capa de Presentació</h4>
+<p>Com hem dit, s'encarrega de la gestió de la interfície i la interacció amb l’usuari, i inclou tant les pantalles com els widgets i temes.</p>
+<p>Aquesta capa es compon de:</p>
+<ul>
+<li><strong>Pantalles (<code>screens</code>)</strong>: Representen pantalles completes de l’aplicació, com <code>AudioPlayerScreen</code>, que mostra una llista de pistes d’àudio i permet seleccionar-ne una per reproduir-la.</li>
+<li><strong>Ginys Reutilitzables (<code>widgets</code>)</strong>: Inclou ginys com <code>TrackItem</code> i <code>TrackDetailsView</code> per mostrar informació específica de les pistes d’àudio.</li>
+<li><strong>Temes (<code>themes</code>)</strong>: Defineix la configuració d’estil global de l’aplicació, com <code>AppTheme</code>.</li>
+</ul>
+<p>Amb aquesta organització, la capa de presentació només depèn de la interfície de la capa de domini (<code>TrackRepository</code>) i no dels detalls concrets d’accés a dades, amb el que es facilita la prova de la interfície i la reutilització de components.</p>
+<pre class="language-mermaid"><code class="language-mermaid">---
+  config:
+    class:
+      hideEmptyMembersBox: true
+---
+classDiagram
+class AudioPlayerScreen{
+&lt;&lt;StatefulWidget&gt;&gt;
+repository: TrackRepository
+createState(): State&lt;AudioPlayerScreen&gt;
+}
+AudioPlayerScreen "1" --&gt; "1" _AudioPlayerScreenState : crea
+
+AudioPlayerScreen ..&gt; TrackRepository
+class _AudioPlayerScreenState {
+&lt;&lt;State&lt;AudioPlayerScreen&gt;&gt;&gt;
+items: List&lt;Track&gt;
+currentPlaying: TrackDetails?
+initState(): void
+loadTrackList(): void
+build(): Widget
+createTrackList(): Expanded
+wantKeepAlive(): bool
+}
+
+_AudioPlayerScreenState ..&gt; TrackDetails
+class TrackItem {
+&lt;&lt;StatelessWidget&gt;&gt;
+title: String
+author: String
+duration: String
+onSelect: VoidCallback
+build(): Widget
+}
+
+class TrackDetailsView {
+&lt;&lt;StatefulWidget&gt;&gt; 
+currentPlaying: TrackDetails?
+createState(): State&lt;TrackDetailsView&gt;
+}
+TrackDetailsView ..&gt; TrackDetails
+class _TrackDetailsViewState {
+&lt;&lt;State&lt;TrackDetailsView&gt;&gt;&gt;
+player: null
+isPlaying: bool
+currentPosition: Duration
+totalDuration: Duration
+initState(): void
+dispose(): void
+playAudio(): void
+pauseAudio(): void
+stopAudio(): void
+build(): Widget
+formatDuration(): String
+}
+
+class TrackRepository:::domain
+class TrackDetails:::domain
+TrackDetailsView "1" --&gt; "1" _TrackDetailsViewState : crea
+
+   _AudioPlayerScreenState --&gt; TrackItem : renderitza
+
+classDef domain fill:#9f6
+classDef infrastructura fill:#f96
+</code></pre>
+<h4 id="estructura-completa-del-projecte">Estructura Completa del Projecte</h4>
+<p>amb això, l'estructura de carpetes que se'ns queda és:</p>
+<pre class="language-dart"><code>lib
+├── domain
+│   ├── domain.dart                     # Punt d'entrada de la capa de domini
+│   ├── entities
+│   │   ├── entities.dart               # Exporta totes les entitats
+│   │   ├── track.dart                  # Entitat base per a les pistes
+│   │   └── track_details.dart          # Detalls complets d'una pista
+│   └── repository
+│       ├── track_repository.dart       # Interfície del repositori
+│       └── track_repository_impl.dart  # Implementació del repositori
+├── infrastructure
+│   └── data_sources
+│       ├── api
+│       │   ├── api_data_sources.dart   # Exporta fonts de dades
+│       │   └── audio_network_api.dart  # Gestió de l'API REST
+│       └── data_sources.dart           # Punt d'entrada per fonts de dades
+├── main.dart                           # Punt d'entrada de l'aplicació
+└── presentation
+    ├── presentation.dart               # Punt d'entrada de la capa de presentació
+    ├── screens
+    │   └── audio_player_screen.dart    # Pantalla principal per l'usuari
+    ├── themes
+    │   └── app_theme.dart              # Configuració del tema global
+    └── widgets
+        ├── track_details_view.dart     # Vista detallada d'una pista
+        └── trackitem.dart              # Element de llista de pistes
+</code></pre>
+</section>
+
+
+      <section class="summary">
+          <h2>Libraries</h2>
+        <dl>
+          <dt id="domain">
+  <span class="name"><a href="domain/domain-library.html">domain/domain</a></span> 
+
+</dt>
+<dd>Llibreria <code>domain</code>
+</dd>
+
+          <dt id="entities">
+  <span class="name"><a href="entities/entities-library.html">domain/entities/entities</a></span> 
+
+</dt>
+<dd>Entitats.
+</dd>
+
+          <dt id="track">
+  <span class="name"><a href="domain_entities_track/domain_entities_track-library.html">domain/entities/track</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="track_details">
+  <span class="name"><a href="domain_entities_track_details/domain_entities_track_details-library.html">domain/entities/track_details</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="track_repository">
+  <span class="name"><a href="domain_repository_track_repository/domain_repository_track_repository-library.html">domain/repository/track_repository</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="api_data_sources">
+  <span class="name"><a href="api_data_sources/api_data_sources-library.html">infrastructure/data_sources/api/api_data_sources</a></span> 
+
+</dt>
+<dd>Llibreria <code>api_data_sources</code>
+</dd>
+
+          <dt id="audio_network_api">
+  <span class="name"><a href="infrastructure_data_sources_api_audio_network_api/infrastructure_data_sources_api_audio_network_api-library.html">infrastructure/data_sources/api/audio_network_api</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="data_sources">
+  <span class="name"><a href="data_sources/data_sources-library.html">infrastructure/data_sources/data_sources</a></span> 
+
+</dt>
+<dd>Llibreria <code>data_sources</code>
+</dd>
+
+          <dt id="track_repository_impl">
+  <span class="name"><a href="infrastructure_repository_track_repository_impl/infrastructure_repository_track_repository_impl-library.html">infrastructure/repository/track_repository_impl</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="main">
+  <span class="name"><a href="main/main-library.html">main</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="presentation">
+  <span class="name"><a href="presentation/presentation-library.html">presentation/presentation</a></span> 
+
+</dt>
+<dd>Llibreria Presentation.
+</dd>
+
+          <dt id="audio_player_screen">
+  <span class="name"><a href="presentation_screens_audio_player_screen/presentation_screens_audio_player_screen-library.html">presentation/screens/audio_player_screen</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="app_theme">
+  <span class="name"><a href="presentation_themes_app_theme/presentation_themes_app_theme-library.html">presentation/themes/app_theme</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="track_details_view">
+  <span class="name"><a href="presentation_widgets_track_details_view/presentation_widgets_track_details_view-library.html">presentation/widgets/track_details_view</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="trackitem">
+  <span class="name"><a href="presentation_widgets_trackitem/presentation_widgets_trackitem-library.html">presentation/widgets/trackitem</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+        </dl>
+      </section>
+
+  </div> <!-- /.main-content -->
+
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li class="self-crumb">client_multimedia package</li>
+</ol>
+
+
+    <h5 class="hidden-xs"><span class="package-name">client_multimedia</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="domain/domain-library.html">domain/domain</a></li>
+      <li><a href="entities/entities-library.html">domain/entities/entities</a></li>
+      <li><a href="domain_entities_track/domain_entities_track-library.html">domain/entities/track</a></li>
+      <li><a href="domain_entities_track_details/domain_entities_track_details-library.html">domain/entities/track_details</a></li>
+      <li><a href="domain_repository_track_repository/domain_repository_track_repository-library.html">domain/repository/track_repository</a></li>
+      <li><a href="api_data_sources/api_data_sources-library.html">infrastructure/data_sources/api/api_data_sources</a></li>
+      <li><a href="infrastructure_data_sources_api_audio_network_api/infrastructure_data_sources_api_audio_network_api-library.html">infrastructure/data_sources/api/audio_network_api</a></li>
+      <li><a href="data_sources/data_sources-library.html">infrastructure/data_sources/data_sources</a></li>
+      <li><a href="infrastructure_repository_track_repository_impl/infrastructure_repository_track_repository_impl-library.html">infrastructure/repository/track_repository_impl</a></li>
+      <li><a href="main/main-library.html">main</a></li>
+      <li><a href="presentation/presentation-library.html">presentation/presentation</a></li>
+      <li><a href="presentation_screens_audio_player_screen/presentation_screens_audio_player_screen-library.html">presentation/screens/audio_player_screen</a></li>
+      <li><a href="presentation_themes_app_theme/presentation_themes_app_theme-library.html">presentation/themes/app_theme</a></li>
+      <li><a href="presentation_widgets_track_details_view/presentation_widgets_track_details_view-library.html">presentation/widgets/track_details_view</a></li>
+      <li><a href="presentation_widgets_trackitem/presentation_widgets_trackitem-library.html">presentation/widgets/trackitem</a></li>
+</ol>
+
+  </div>
+
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div>
+
+</main>
+
+<footer>
+  <span class="no-break">
+    client_multimedia
+      1.0.0+1
+  </span>
+
+  
+</footer>
+
+
+
+<script src="static-assets/highlight.pack.js?v1"></script>
+<script src="static-assets/docs.dart.js"></script>
+
+
+
+</body>
+
+</html>
+
